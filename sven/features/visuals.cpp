@@ -15,6 +15,9 @@ void Visuals::ESP::Run()
 		//if (entity->curstate.health > 0) // only alive check I could come up with (doesnt work apparently)
 		//	continue;
 
+		if (entity->curstate.messagenum < localplayer->curstate.messagenum)
+			continue;
+
 		if (entity->origin.x == 0.0f && entity->origin.y == 0.0f && entity->origin.z == 0.0f)
 			continue;
 
