@@ -97,6 +97,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -138,10 +139,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="features\movement.cpp" />
     <ClCompile Include="safetyhook\safetyhook.cpp" />
     <ClCompile Include="safetyhook\Zydis.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include.hpp" />
+    <ClInclude Include="features\movement.hpp" />
     <ClInclude Include="safetyhook\safetyhook.hpp" />
     <ClInclude Include="sdk.hpp" />
     <ClInclude Include="safetyhook\Zydis.h" />

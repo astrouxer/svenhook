@@ -1,6 +1,35 @@
 #pragma once
 
 // so much slop shamelessly pasted from hl1 sdk on github
+// a lot of sdk was lowkey just commented or replaced with DWORD im too lazy lololol
+
+#define STUDIO_RENDER 1
+#define STUDIO_EVENTS 2
+
+#define MAX_CLIENTS			32
+#define	MAX_EDICTS			900
+
+#define MAX_MODEL_NAME		64
+#define MAX_MAP_HULLS		4
+#define	MIPLEVELS			4
+#define	NUM_AMBIENTS		4		// automatic ambient sounds
+#define	MAXLIGHTMAPS		4
+#define	PLANE_ANYZ			5
+
+#define ALIAS_Z_CLIP_PLANE	5
+
+// flags in finalvert_t.flags
+#define ALIAS_LEFT_CLIP				0x0001
+#define ALIAS_TOP_CLIP				0x0002
+#define ALIAS_RIGHT_CLIP			0x0004
+#define ALIAS_BOTTOM_CLIP			0x0008
+#define ALIAS_Z_CLIP				0x0010
+#define ALIAS_ONSEAM				0x0020
+#define ALIAS_XY_CLIP_MASK			0x000F
+
+#define	ZISCALE	((float)0x8000)
+
+#define CACHE_SIZE	32		// used to align key data structures
 
 #define	FL_FLY					(1<<0)	// Changes the SV_Movestep() behavior to not need to be on ground
 #define	FL_SWIM					(1<<1)	// Changes the SV_Movestep() behavior to not need to be on ground (but stay in water)
@@ -242,6 +271,349 @@ typedef struct usercmd_s
 	vec3_t	impact_position;
 } usercmd_t;
 
+typedef struct SCREENINFO_s
+{
+	int		iSize;
+	int		iWidth;
+	int		iHeight;
+	int		iFlags;
+	int		iCharHeight;
+	short	charWidths[256];
+} SCREENINFO;
+
+typedef struct
+{
+	float		mins[3], maxs[3];
+	float		origin[3];
+	int			headnode[MAX_MAP_HULLS];
+	int			visleafs;		// not including the solid leaf 0
+	int			firstface, numfaces;
+} dmodel_t;
+
+// plane_t structure
+typedef struct mplane_s
+{
+	vec3_t	normal;			// surface normal
+	float	dist;			// closest appoach to origin
+	byte	type;			// for texture axis selection and fast side tests
+	byte	signbits;		// signx + signy<<1 + signz<<1
+	byte	pad[2];
+} mplane_t;
+
+typedef struct
+{
+	vec3_t		position;
+} mvertex_t;
+
+typedef struct
+{
+	unsigned short	v[2];
+	unsigned int	cachededgeoffset;
+} medge_t;
+
+typedef struct texture_s
+{
+	char		name[16];
+	unsigned	width, height;
+	int			anim_total;				// total tenths in sequence ( 0 = no)
+	int			anim_min, anim_max;		// time for this frame min <=time< max
+	struct texture_s* anim_next;		// in the animation sequence
+	struct texture_s* alternate_anims;	// bmodels in frame 1 use these
+	unsigned	offsets[MIPLEVELS];		// four mip maps stored
+	unsigned	paloffset;
+} texture_t;
+
+typedef struct
+{
+	float		vecs[2][4];		// [s/t] unit vectors in world space. 
+	// [i][3] is the s/t offset relative to the origin.
+	// s or t = dot(3Dpoint,vecs[i])+vecs[i][3]
+	float		mipadjust;		// ?? mipmap limits for very small surfaces
+	texture_t* texture;
+	int			flags;			// sky or slime, no lightmap or 256 subdivision
+} mtexinfo_t;
+
+typedef struct mnode_s
+{
+	// common with leaf
+	int			contents;		// 0, to differentiate from leafs
+	int			visframe;		// node needs to be traversed if current
+
+	short		minmaxs[6];		// for bounding box culling
+
+	struct mnode_s* parent;
+
+	// node specific
+	mplane_t* plane;
+	struct mnode_s* children[2];
+
+	unsigned short		firstsurface;
+	unsigned short		numsurfaces;
+} mnode_t;
+
+typedef struct msurface_s	msurface_t;
+typedef struct decal_s		decal_t;
+
+// JAY: Compress this as much as possible
+struct decal_s
+{
+	decal_t* pnext;			// linked list for each surface
+	msurface_t* psurface;		// Surface id for persistence / unlinking
+	short		dx;				// Offsets into surface texture (in texture coordinates, so we don't need floats)
+	short		dy;
+	short		texture;		// Decal texture
+	byte		scale;			// Pixel scale
+	byte		flags;			// Decal flags
+
+	short		entityIndex;	// Entity this is attached to
+};
+
+typedef struct mleaf_s
+{
+	// common with node
+	int			contents;		// wil be a negative contents number
+	int			visframe;		// node needs to be traversed if current
+
+	short		minmaxs[6];		// for bounding box culling
+
+	struct mnode_s* parent;
+
+	// leaf specific
+	byte* compressed_vis;
+	struct efrag_s* efrags;
+
+	msurface_t** firstmarksurface;
+	int			nummarksurfaces;
+	int			key;			// BSP sequence number for leaf's contents
+	byte		ambient_sound_level[NUM_AMBIENTS];
+} mleaf_t;
+
+struct msurface_s
+{
+	int			visframe;		// should be drawn when node is crossed
+
+	int			dlightframe;	// last frame the surface was checked by an animated light
+	int			dlightbits;		// dynamically generated. Indicates if the surface illumination 
+	// is modified by an animated light.
+
+	mplane_t* plane;			// pointer to shared plane			
+	int			flags;			// see SURF_ #defines
+
+	int			firstedge;	// look up in model->surfedges[], negative numbers
+	int			numedges;	// are backwards edges
+
+	// surface generation data
+	struct surfcache_s* cachespots[MIPLEVELS];
+
+	short		texturemins[2]; // smallest s/t position on the surface.
+	short		extents[2];		// ?? s/t texture size, 1..256 for all non-sky surfaces
+
+	mtexinfo_t* texinfo;
+
+	// lighting info
+	byte		styles[MAXLIGHTMAPS]; // index into d_lightstylevalue[] for animated lights 
+	// no one surface can be effected by more than 4 
+	// animated lights.
+	DWORD* samples;
+
+	decal_t* pdecals;
+};
+
+typedef struct
+{
+	int			planenum;
+	short		children[2];	// negative numbers are contents
+} dclipnode_t;
+
+typedef struct hull_s
+{
+	dclipnode_t* clipnodes;
+	mplane_t* planes;
+	int			firstclipnode;
+	int			lastclipnode;
+	vec3_t		clip_mins;
+	vec3_t		clip_maxs;
+} hull_t;
+
+typedef struct cache_user_s
+{
+	void* data;
+} cache_user_t;
+
+typedef struct model_s
+{
+	char		name[MAX_MODEL_NAME];
+	qboolean	needload;		// bmodels and sprites don't cache normally
+
+	DWORD*	type;
+	int			numframes;
+	DWORD*	synctype;
+
+	int			flags;
+
+	//
+	// volume occupied by the model
+	//		
+	vec3_t		mins, maxs;
+	float		radius;
+
+	//
+	// brush model
+	//
+	int			firstmodelsurface, nummodelsurfaces;
+
+	int			numsubmodels;
+	dmodel_t* submodels;
+
+	int			numplanes;
+	mplane_t* planes;
+
+	int			numleafs;		// number of visible leafs, not counting 0
+	struct mleaf_s* leafs;
+
+	int			numvertexes;
+	mvertex_t* vertexes;
+
+	int			numedges;
+	medge_t* edges;
+
+	int			numnodes;
+	mnode_t* nodes;
+
+	int			numtexinfo;
+	mtexinfo_t* texinfo;
+
+	int			numsurfaces;
+	msurface_t* surfaces;
+
+	int			numsurfedges;
+	int* surfedges;
+
+	int			numclipnodes;
+	dclipnode_t* clipnodes;
+
+	int			nummarksurfaces;
+	msurface_t** marksurfaces;
+
+	hull_t		hulls[MAX_MAP_HULLS];
+
+	int			numtextures;
+	texture_t** textures;
+
+	byte* visdata;
+
+	DWORD* lightdata;
+
+	char* entities;
+
+	//
+	// additional model data
+	//
+	cache_user_t	cache;		// only access through Mod_Extradata
+
+} model_t;
+
+typedef struct r_studio_interface_s
+{
+	int				version;
+	int				(*StudioDrawModel)			(int flags);
+	int				(*StudioDrawPlayer)			(int flags, struct entity_state_s* pplayer);
+} r_studio_interface_t;
+
+typedef struct engine_studio_api_s
+{
+	// Allocate number*size bytes and zero it
+	void* (*Mem_Calloc)				(int number, size_t size);
+	// Check to see if pointer is in the cache
+	void* (*Cache_Check)				(struct cache_user_s* c);
+	// Load file into cache ( can be swapped out on demand )
+	void			(*LoadCacheFile)				(char* path, struct cache_user_s* cu);
+	// Retrieve model pointer for the named model
+	struct model_s* (*Mod_ForName)				(const char* name, int crash_if_missing);
+	// Retrieve pointer to studio model data block from a model
+	void* (*Mod_Extradata)				(struct model_s* mod);
+	// Retrieve indexed model from client side model precache list
+	struct model_s* (*GetModelByIndex)			(int index);
+	// Get entity that is set for rendering
+	struct cl_entity_s* (*GetCurrentEntity)		(void);
+	// Get referenced player_info_t
+	struct player_info_s* (*PlayerInfo)			(int index);
+	// Get most recently received player state data from network system
+	struct entity_state_s* (*GetPlayerState)		(int index);
+	// Get viewentity
+	struct cl_entity_s* (*GetViewEntity)			(void);
+	// Get current frame count, and last two timestampes on client
+	void			(*GetTimes)					(int* framecount, double* current, double* old);
+	// Get a pointer to a cvar by name
+	struct cvar_s* (*GetCvar)					(const char* name);
+	// Get current render origin and view vectors ( up, right and vpn )
+	void			(*GetViewInfo)				(float* origin, float* upv, float* rightv, float* vpnv);
+	// Get sprite model used for applying chrome effect
+	struct model_s* (*GetChromeSprite)			(void);
+	// Get model counters so we can incement instrumentation
+	void			(*GetModelCounters)			(int** s, int** a);
+	// Get software scaling coefficients
+	void			(*GetAliasScale)				(float* x, float* y);
+
+	// Get bone, light, alias, and rotation matrices
+	float**** (*StudioGetBoneTransform) (void);
+	float**** (*StudioGetLightTransform)(void);
+	float*** (*StudioGetAliasTransform) (void);
+	float*** (*StudioGetRotationMatrix) (void);
+
+	// Set up body part, and get submodel pointers
+	void			(*StudioSetupModel)			(int bodypart, void** ppbodypart, void** ppsubmodel);
+	// Check if entity's bbox is in the view frustum
+	int				(*StudioCheckBBox)			(void);
+	// Apply lighting effects to model
+	void			(*StudioDynamicLight)			(struct cl_entity_s* ent, struct alight_s* plight);
+	void			(*StudioEntityLight)			(struct alight_s* plight);
+	void			(*StudioSetupLighting)		(struct alight_s* plighting);
+
+	// Draw mesh vertices
+	void			(*StudioDrawPoints)			(void);
+
+	// Draw hulls around bones
+	void			(*StudioDrawHulls)			(void);
+	// Draw bbox around studio models
+	void			(*StudioDrawAbsBBox)			(void);
+	// Draws bones
+	void			(*StudioDrawBones)			(void);
+	// Loads in appropriate texture for model
+	void			(*StudioSetupSkin)			(void* ptexturehdr, int index);
+	// Sets up for remapped colors
+	void			(*StudioSetRemapColors)		(int top, int bottom);
+	// Set's player model and returns model pointer
+	struct model_s* (*SetupPlayerModel)			(int index);
+	// Fires any events embedded in animation
+	void			(*StudioClientEvents)			(void);
+	// Retrieve/set forced render effects flags
+	int				(*GetForceFaceFlags)			(void);
+	void			(*SetForceFaceFlags)			(int flags);
+	// Tell engine the value of the studio model header
+	void			(*StudioSetHeader)			(void* header);
+	// Tell engine which model_t * is being renderered
+	void			(*SetRenderModel)				(struct model_s* model);
+
+	// Final state setup and restore for rendering
+	void			(*SetupRenderer)				(int rendermode);
+	void			(*RestoreRenderer)			(void);
+
+	// Set render origin for applying chrome effect
+	void			(*SetChromeOrigin)			(void);
+
+	// True if using D3D/OpenGL
+	int				(*IsHardware)					(void);
+
+	// Only called by hardware interface
+	void			(*GL_StudioDrawShadow)		(void);
+	void			(*GL_SetRenderMode)			(int mode);
+
+	void			(*StudioSetRenderamt)			(int iRenderamt); 	//!!!CZERO added for rendering glass on viewmodels
+	void			(*StudioSetCullState)			(int iCull);
+	void			(*StudioRenderShadow)			(int iSprite, float* p1, float* p2, float* p3, float* p4);
+} engine_studio_api_t;
+
 typedef struct cl_enginefuncs_s {
 	void* pfnSPR_Load;
 	void* pfnSPR_Frames;
@@ -255,7 +627,7 @@ typedef struct cl_enginefuncs_s {
 	void* pfnSPR_DisableScissor;
 	void* pfnSPR_GetList;
 	void* pfnFillRGBA;
-	void* pfnGetScreenInfo;
+	int (__cdecl* pfnGetScreenInfo)(struct SCREENINFO_s* pscrinfo);
 	void* pfnSetCrosshair;
 	void* pfnRegisterVariable;
 	void* pfnGetCvarFloat;
@@ -270,7 +642,7 @@ typedef struct cl_enginefuncs_s {
 	void* pfnAngleVectors;
 	void* pfnTextMessageGet;
 	void* pfnDrawCharacter;
-	int* (__cdecl* pfnDrawConsoleString)(int x, int y, char* string);
+	int (__cdecl* pfnDrawConsoleString)(int x, int y, char* string);
 	void* (__cdecl* pfnDrawSetTextColor)(float r, float g, float b);
 	void* pfnDrawConsoleStringLen;
 	void* pfnConsolePrint;
@@ -279,7 +651,7 @@ typedef struct cl_enginefuncs_s {
 	void* GetWindowCenterY;
 	void* GetViewAngles;
 	void* SetViewAngles;
-	void* GetMaxClients;
+	int (__cdecl* GetMaxClients)(void);
 	void* Cvar_SetValue;
 	void* Cmd_Argc;
 	void* Cmd_Argv;
@@ -295,7 +667,7 @@ typedef struct cl_enginefuncs_s {
 	void* GetMousePosition;
 	void* IsNoClipping;
 	cl_entity_s* (__cdecl* GetLocalPlayer)(void);
-	void* GetViewModel;
+	cl_entity_s* (__cdecl* GetViewModel)(void);
 	cl_entity_s* (__cdecl* GetEntityByIndex)(int* index);
 	void* GetClientTime;
 	void* V_CalcShake;
@@ -303,7 +675,7 @@ typedef struct cl_enginefuncs_s {
 	void* PM_PointContents;
 	void* PM_WaterEntity;
 	void* PM_TraceLine;
-	void* CL_LoadModel;
+	struct model_s* (__cdecl* CL_LoadModel)(const char* modelname, int* index);
 	void* CL_CreateVisibleEntity;
 	void* GetSpritePointer;
 	void* pfnPlaySoundByNameAtLocation;
@@ -453,11 +825,22 @@ typedef struct playermove_s
 	vec3_t			vuser4;
 } playermove_t;
 
-
-cl_enginefunc_t* GetEngineFuncs() {
-	return (cl_enginefunc_t*)((uintptr_t)GetModuleHandleA("client.dll") + 0x1F8998);
+inline cl_enginefunc_t* GetEngineFuncs() 
+{
+	return (cl_enginefunc_t*)((uintptr_t)GetModuleHandleA("client.dll") + 0x1F8998); // not sure if u can export these /shrug im newgen
 }
 
-playermove_t* GetPlayerMove() {
+inline playermove_t* GetPlayerMove() 
+{
 	return *(playermove_t**)((uintptr_t)GetModuleHandleA("client.dll") + 0x649088);
+}
+
+inline engine_studio_api_t* GetEngineStudio()
+{
+	return (engine_studio_api_t*)((uintptr_t)GetModuleHandleA("client.dll") + 0x63C870);
+}
+
+inline r_studio_interface_t* GetStudioInterface()
+{
+	return (r_studio_interface_t*)((uintptr_t)GetModuleHandleA("client.dll") + 0x1A25B4);
 }
