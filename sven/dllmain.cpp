@@ -35,26 +35,34 @@ int Redraw(__int64 a1)
 		engine->pfnDrawSetTextColor(75, 0, 130);
 		engine->pfnDrawConsoleString(5, 5, (char*)"sven hook");
 
-		char slop1[32], slop2[32], slop3[32];
-		snprintf(slop1, sizeof(slop1), "BHOP [%s]", Movement::Bunnyhop::Enabled ? "ON" : "OFF");
-		snprintf(slop2, sizeof(slop2), "AUTOSTRAFE [%s]", Movement::Autostrafe::Enabled ? "ON" : "OFF");
-		snprintf(slop3, sizeof(slop3), "TOAD MODE [%s]", toad_mode ? "ON" : "OFF");
+		char esp[32], bhop[32], autostrafe[32], toad[32];
+		snprintf(esp, sizeof(esp), "ESP [%s]", Visuals::ESP::Enabled ? "ON" : "OFF");
+		snprintf(bhop, sizeof(bhop), "BHOP [%s]", Movement::Bunnyhop::Enabled ? "ON" : "OFF");
+		snprintf(autostrafe, sizeof(autostrafe), "AUTOSTRAFE [%s]", Movement::Autostrafe::Enabled ? "ON" : "OFF");
+		snprintf(toad, sizeof(toad), "TOAD MODE [%s]", toad_mode ? "ON" : "OFF");
 
 		engine->pfnDrawSetTextColor(75, 0, 130);
-		engine->pfnDrawConsoleString(5, 20, slop1);
+		engine->pfnDrawConsoleString(5, 20, esp);
 
 		engine->pfnDrawSetTextColor(75, 0, 130);
-		engine->pfnDrawConsoleString(5, 35, slop2);
+		engine->pfnDrawConsoleString(5, 35, bhop);
 
 		engine->pfnDrawSetTextColor(75, 0, 130);
-		engine->pfnDrawConsoleString(5, 50, slop3);
+		engine->pfnDrawConsoleString(5, 50, autostrafe);
+
+		engine->pfnDrawSetTextColor(75, 0, 130);
+		engine->pfnDrawConsoleString(5, 65, toad);
 
 		if (localplayer != nullptr && pmove != nullptr)
 		{
 			std::string velocity = std::to_string((int)pmove->velocity.Length());
+
 			engine->pfnDrawSetTextColor(75, 0, 130);
 			engine->pfnDrawConsoleString(screenInfo.iWidth / 2, screenInfo.iHeight / 2 + 10, (char*)velocity.c_str());
 		}
+
+		if (Visuals::ESP::Enabled)
+			Visuals::ESP::Run();
 	}
 
 	return result;
@@ -113,6 +121,7 @@ DWORD WINAPI CheatThread(LPVOID lpParam)
 	printf("i_studio: %p\n", i_studio);
 
 	printf("\n");
+	printf("esp: f9\n");
 	printf("bhop: page up\n");
 	printf("autostrafe: page down\n");
 	printf("toad mode: f10\n");
@@ -126,6 +135,9 @@ DWORD WINAPI CheatThread(LPVOID lpParam)
 	{
 		if (GetAsyncKeyState(VK_END) & 0x8000)
 			break;
+
+		if (GetAsyncKeyState(VK_F9) & 1)
+			Visuals::ESP::Enabled = !Visuals::ESP::Enabled;
 
 		if (GetAsyncKeyState(VK_PRIOR) & 1)
 			Movement::Bunnyhop::Enabled = !Movement::Bunnyhop::Enabled;

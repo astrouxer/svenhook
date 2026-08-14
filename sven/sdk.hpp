@@ -71,6 +71,11 @@ typedef int qboolean;
 #define qfalse 0
 #define qtrue  1
 
+struct vec2_t
+{
+	float x, y;
+};
+
 struct vec3_t
 {
 	float x, y, z;
@@ -614,6 +619,49 @@ typedef struct engine_studio_api_s
 	void			(*StudioRenderShadow)			(int iSprite, float* p1, float* p2, float* p3, float* p4);
 } engine_studio_api_t;
 
+typedef struct triangleapi_s
+{
+	int			version;
+
+	void		(*RenderMode)(int mode);
+	void		(*Begin)(int primitiveCode);
+	void		(*End) (void);
+
+	void		(*Color4f) (float r, float g, float b, float a);
+	void		(*Color4ub) (unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+	void		(*TexCoord2f) (float u, float v);
+	void		(*Vertex3fv) (float* worldPnt);
+	void		(*Vertex3f) (float x, float y, float z);
+	void		(*Brightness) (float brightness);
+	void		(*CullFace) (DWORD style);
+	int			(*SpriteTexture) (struct model_s* pSpriteModel, int frame);
+	int			(*WorldToScreen) (float* world, float* screen);  // Returns 1 if it's z clipped
+	void		(*Fog) (float flFogColor[3], float flStart, float flEnd, int bOn); // Works just like GL_FOG, flFogColor is r/g/b.
+	void		(*ScreenToWorld) (float* screen, float* world);
+	void		(*GetMatrix) (const int pname, float* matrix);
+	int			(*BoxInPVS) (float* mins, float* maxs);
+	void		(*LightAtPoint) (float* pos, float* value);
+	void		(*Color4fRendermode) (float r, float g, float b, float a, int rendermode);
+	void		(*FogParams) (float flDensity, int iFogSkybox); // Used with Fog()...sets fog density and whether the fog should be applied to the skybox
+
+} triangleapi_t;
+
+typedef struct hud_player_info_s
+{
+	char* name;
+	short ping;
+	byte thisplayer;  // TRUE if this is the calling player
+
+	byte spectator;
+	byte packetloss;
+
+	char* model;
+	short topcolor;
+	short bottomcolor;
+
+	int64_t m_nSteamID;
+} hud_player_info_t;
+
 typedef struct cl_enginefuncs_s {
 	void* pfnSPR_Load;
 	void* pfnSPR_Frames;
@@ -626,7 +674,7 @@ typedef struct cl_enginefuncs_s {
 	void* pfnSPR_EnableScissor;
 	void* pfnSPR_DisableScissor;
 	void* pfnSPR_GetList;
-	void* pfnFillRGBA;
+	void* (__cdecl* pfnFillRGBA)(int x, int y, int width, int height, int r, int g, int b, int a);
 	int (__cdecl* pfnGetScreenInfo)(struct SCREENINFO_s* pscrinfo);
 	void* pfnSetCrosshair;
 	void* pfnRegisterVariable;
@@ -636,7 +684,7 @@ typedef struct cl_enginefuncs_s {
 	void* pfnHookUserMsg;
 	void* pfnServerCmd;
 	void* pfnClientCmd;
-	void* pfnGetPlayerInfo;
+	void* (__cdecl* pfnGetPlayerInfo)(int ent_num, hud_player_info_t* pinfo);
 	void* pfnPlaySoundByName;
 	void* pfnPlaySoundByIndex;
 	void* pfnAngleVectors;
@@ -644,7 +692,7 @@ typedef struct cl_enginefuncs_s {
 	void* pfnDrawCharacter;
 	int (__cdecl* pfnDrawConsoleString)(int x, int y, char* string);
 	void* (__cdecl* pfnDrawSetTextColor)(float r, float g, float b);
-	void* pfnDrawConsoleStringLen;
+	void(__cdecl* pfnDrawConsoleStringLen)(const char* string, int* length, int* height);
 	void* pfnConsolePrint;
 	void* pfnCenterPrint;
 	void* GetWindowCenterX;
@@ -668,8 +716,8 @@ typedef struct cl_enginefuncs_s {
 	void* IsNoClipping;
 	cl_entity_s* (__cdecl* GetLocalPlayer)(void);
 	cl_entity_s* (__cdecl* GetViewModel)(void);
-	cl_entity_s* (__cdecl* GetEntityByIndex)(int* index);
-	void* GetClientTime;
+	cl_entity_s* (__cdecl* GetEntityByIndex)(int index);
+	double (__cdecl* GetClientTime)(void);
 	void* V_CalcShake;
 	void* V_ApplyShake;
 	void* PM_PointContents;
@@ -697,7 +745,7 @@ typedef struct cl_enginefuncs_s {
 	void* COM_LoadFile;
 	void* COM_ParseFile;
 	void* COM_FreeFile;
-	void* pTriAPI;
+	triangleapi_s* pTriAPI;
 	void* pEfxAPI;
 	void* pEventAPI;
 	void* pDemoAPI;

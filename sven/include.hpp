@@ -15,3 +15,4 @@ extern r_studio_interface_t* i_studio;
 extern cl_entity_s* localplayer;
 
 #include "features/movement.hpp"
+#include "features/visuals.hpp"

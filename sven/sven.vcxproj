@@ -95,7 +95,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;CODSLOP_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
@@ -130,6 +130,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -140,10 +141,12 @@
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="features\movement.cpp" />
+    <ClCompile Include="features\visuals.cpp" />
     <ClCompile Include="safetyhook\safetyhook.cpp" />
     <ClCompile Include="safetyhook\Zydis.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="features\visuals.hpp" />
     <ClInclude Include="include.hpp" />
     <ClInclude Include="features\movement.hpp" />
     <ClInclude Include="safetyhook\safetyhook.hpp" />
